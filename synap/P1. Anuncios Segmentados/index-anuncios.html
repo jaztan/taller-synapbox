@@ -1,0 +1,94 @@
+alc<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+        div.gallery {
+            margin: 5px;
+            border: 1px solid #ccc;
+            float: left;
+            width: 200px;
+        }
+        div.gallery:hover {
+            border: 1px solid #777;
+        }
+        div.gallery img {
+            width: 100%;
+            height: auto;
+        }
+        div.desc {
+            padding: 10px;
+            text-align: center;
+            font-size:12px
+        }
+        div.source img {
+            width: 250px;
+            height: auto;
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.85.0.min.js"></script>
+    <script>
+    $(document).ready(function(){
+        AWS.config.region = 'us-west-2';
+        AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+            IdentityPoolId: 'us-west-2:5f16d2c9-9fba-432f-9bf2-c10dafc1abd0',
+        });
+        var s3 = new AWS.S3({
+            apiVersion: '2006-03-01',
+            params: {Bucket: 'test-detecta-cara-para-anuncios'}
+        });
+        $('#addphoto').click(function(event) {
+            var files = $('#photoupload').prop('files');
+            if (!files.length) {
+               return alert('¡Selecciona una imagen!');
+            }
+            var file = files[0];
+            s3.upload({
+                    Key: file.name,
+                    Body: file,
+                    ACL: 'public-read'
+                }, function(err, data) {
+                    if (err) {
+                        return alert('Error al subir imagen: ', err);
+                    } else {
+                        //successfully uploaded photo
+                        var apiinvokeurl = 'https://5a1mlgnmi3.execute-api.us-west-2.amazonaws.com/dev/';
+                        var url =  apiinvokeurl + '?filename=' + file.name;
+                        $.get(url, function(data){
+                            $('#album-list').empty();
+                            var imageurl = 'https://s3-us-west-2.amazonaws.com/test-anuncios-segmentados/' + data;
+                            var htmlelements = [
+                                '<div class="gallery">',
+                                '<a target="_blank" href="' + imageurl + '"><img src="' + imageurl +'"/></a>',
+                                '</div>'
+                            ]
+                            var img = gethtml(htmlelements);
+                            $(img).appendTo('#album-list');
+                        });
+                    }
+            });
+        });
+       function gethtml(elements) {
+          return elements.join('\n');
+       }
+       $('#photoupload').on("change", function(e){
+           $('#output').attr('src',URL.createObjectURL(e.target.files[0]));
+           $('#album-list').empty();
+        });
+    });
+  </script>
+  </head>
+  <body>
+    <h1>Anuncios segmentados</h1>
+    <div>
+        <input id="photoupload" type="file" accept="image/*">
+        <button id="addphoto">Jalar anuncio</button>
+        <br/><br/>
+        <div class="source"><img id="output"/></div>
+    </div>
+    <hr/>
+    <br/>
+    <div id="album-list">
+    </div>
+  </body>
+</html>
